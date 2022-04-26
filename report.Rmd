@@ -1,0 +1,196 @@
+---
+title: "report"
+author: "AlexCH"
+date: "4/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tapestri.tools)
+library(gt)
+library(patchwork)
+library(viridis)
+library(umap)
+library(ggsci)
+
+#read .h5 files
+h5f_a <- read_h5("h5_files/mPDX_ID_A.dna+protein.h5")
+h5f_b <- read_h5("h5_files/mPDX_ID_B.dna+protein.h5")
+h5f_c <- read_h5("h5_files/mpdxC-10_MB_90.dna+protein.h5")
+h5f_d <- read_h5("h5_files/mpdxD-18_MB_33_38.dna+protein.h5")
+
+dt.var_d <- get_variants(h5f_d)
+```
+
+#### important variant ids:
+(1) chr2:209113112:C/T (IDH1 R132H)
+(2) chr15:90631934:C/T (IDH2 R140Q)
+(3) chr15:90631838:C/T (IDH2 R172K)
+```{r}
+int.var <- c(IDH1.R132H = "chr2:209113112:C/T", 
+             IDH2.R140Q = "chr15:90631934:C/T",
+             IDH2.R172K = "chr15:90631838:C/T",
+             TP53 = "chr17:7577517:A/C",
+             NPM1c = "chr5:170837543:C/CTCTG"
+             )
+```
+
+
+# Indexing
+
+## Index for mPDX-C
+```{r}
+indx_160345 <- get_cells_index(h5f_c, variants = int.var["IDH1.R132H"], c(1, 2))
+indx_160345 <- indx_160345[indx_160345 %in% get_cells_index(h5f_c, variants = int.var["TP53"], c(0, 3))]
+
+indx_150437 <- get_cells_index(h5f_c, variants = int.var["TP53"], c(1, 2))
+indx_150437 <- indx_150437[indx_150437 %in% get_cells_index(h5f_c, variants = int.var["IDH1.R132H"], c(0, 3))]
+
+indx_cells_C <- list(PM160345 = indx_160345, PM150437 = indx_150437)
+
+```
+
+## Index for mPDX-D
+```{r}
+##
+indx_160345 <- get_cells_index(h5f_d, variants = int.var["IDH1.R132H"], c(1, 2))
+indx_160345 <- indx_160345[indx_160345 %in% get_cells_index(h5f_d, variants = int.var["IDH2.R140Q"], c(0, 3))]
+
+indx_160053 <- get_cells_index(h5f_d, variants = int.var["IDH2.R140Q"], c(1, 2))
+indx_160053 <- indx_160053[indx_160053 %in% get_cells_index(h5f_d, variants = int.var["IDH1.R132H"], c(0, 3))]
+
+indx_cells_D <- list(PM160345 = indx_160345, PM160053 = indx_160053)
+```
+
+
+# Doublets (upset plot)
+
+## Doublets mPDX-C
+```{r}
+plot_upset_with_variants(h5f_c, variants = int.var[c("IDH1.R132H", "TP53")])
+```
+
+## Doublets mPDX-D
+```{r}
+plot_upset_with_variants(h5f_d, variants = int.var[c("IDH1.R132H", "IDH2.R140Q", "IDH2.R172K")])
+```
+
+
+# Protein UMAP
+
+## UMAP wrangle: mPDX-C
+```{r}
+protein_C <- read_protein_counts(h5f_c, normalization = "clr") %>% data.table()
+protein_C$index_cell <- 1:nrow(protein_C)
+protein_C$NGT_NPM1c <- read_assays_variants(h5f_c, "NGT", index_variants = get_variants_index(h5f_c, int.var["NPM1c"])) %>% unlist()
+protein_C <- protein_C %>% subset(index_cell %in% unlist(indx_cells_C))
+protein_C$sample <- ifelse(protein_C$index_cell %in% indx_cells_C$PM160345, "PM160345", "PM150437")
+
+umap_C <- umap(dplyr::select(protein_C, starts_with("CD")))
+protein_C$umap1 <- umap_C$layout[, 1]
+protein_C$umap2 <- umap_C$layout[, 2]
+```
+## UMAP wrangle: mPDX-D
+```{r}
+protein_D <- read_protein_counts(h5f_d, normalization = "clr") %>% data.table()
+protein_D$index_cell <- 1:nrow(protein_D)
+protein_D <- protein_D %>% subset(index_cell %in% unlist(indx_cells_D))
+protein_D$sample <- ifelse(protein_D$index_cell %in% indx_cells_D$PM160345, "PM160345", "PM160053")
+
+umap_D <- umap(dplyr::select(protein_D, starts_with("CD")))
+protein_D$umap1 <- umap_D$layout[, 1]
+protein_D$umap2 <- umap_D$layout[, 2]
+```
+
+## UMAP plot: mPDX-C
+```{r}
+#facet by protein 
+ls_umap_c <- list()
+for(i in get_protein_ids(h5f_c)){
+  ggplot(protein_C, aes_string("umap1", "umap2", color = i)) + 
+    geom_point() + 
+    theme_classic() + 
+    labs(x = "UMAP1", y = "UMAP2") +
+    scale_color_viridis_c() -> p
+  
+  ls_umap_c[[i]] <- p
+}
+
+p.umap.out.C <- patchwork::wrap_plots(ls_umap_c, nrow = 2)
+ggsave("protein_umap_C.png", p.umap.out.C, height = 5, width = 15, units = "in", dpi = "retina")
+#####
+
+#facet by patient
+ggplot(protein_C, aes(umap1, umap2, color = sample)) + 
+    geom_point() + 
+    theme_classic() + 
+    labs(x = "UMAP1", y = "UMAP2") +
+    scale_color_viridis_d() -> p.umap.sample.C
+ggsave("protein_umap_sample_C.png", p.umap.sample.C, height = 5, width = 5.85, units = "in", dpi = "retina")
+#####
+
+#violin
+protein_C %>% 
+    pivot_longer(starts_with("CD"), names_to = "marker", values_to = "normalized_count") %>% 
+    ggplot(aes(sample, normalized_count, fill = sample)) +
+    geom_violin() +
+    facet_wrap(~marker, scales = "free_y", nrow = 2) +
+    scale_fill_viridis_d(guide = "none") +
+    labs(x = "Sample", y = "Normalized Count") +
+    theme_classic() -> p.violin.c
+ggsave("protein_violin_C.png", p.violin.c, height = 5, width = 15, units = "in", dpi = "retina")
+```
+
+
+
+## UMAP plot: mPDX-D
+```{r}
+#facet by protein 
+ls_umap_d <- list()
+for(i in get_protein_ids(h5f_d)){
+  ggplot(protein_D, aes_string("umap1", "umap2", color = i)) + 
+    geom_point() + 
+    theme_classic() + 
+    labs(x = "UMAP1", y = "UMAP2") +
+    scale_color_viridis_c() -> p
+  
+  ls_umap_d[[i]] <- p
+}
+
+p.umap.out.D <- patchwork::wrap_plots(ls_umap_d, nrow = 2)
+ggsave("protein_umap_D.png", p.umap.out.D, height = 5, width = 15, units = "in", dpi = "retina")
+#####
+
+#facet by patient
+ggplot(protein_D, aes(umap1, umap2, color = sample)) + 
+    geom_point() + 
+    theme_classic() + 
+    labs(x = "UMAP1", y = "UMAP2") +
+    scale_color_viridis_d() -> p.umap.sample.D
+ggsave("protein_umap_sample_D.png", p.umap.sample.D, height = 5, width = 5.85, units = "in", dpi = "retina")
+#####
+
+#violin
+protein_D %>% 
+    pivot_longer(starts_with("CD"), names_to = "marker", values_to = "normalized_count") %>% 
+    ggplot(aes(sample, normalized_count, fill = sample)) +
+    geom_violin() +
+    facet_wrap(~marker, scales = "free_y", nrow = 2) +
+    scale_fill_viridis_d(guide = "none") +
+    labs(x = "Sample", y = "Normalized Count") +
+    theme_classic() -> p.violin.d
+ggsave("protein_violin_D.png", p.violin.d, height = 5, width = 15, units = "in", dpi = "retina")
+```
+
+## contour plots: mPDX-C
+```{r}
+ggplot(protein_C, aes(CD11b, CD14, color = sample)) + 
+    geom_density_2d() +
+    scale_color_manual(values = c(PM150437 = "navy", PM160345 = "firebrick")) +
+    theme_bw(15) -> p.cd11b.cd14.C
+ggsave("cd11b_cd14_C.png", p.cd11b.cd14.C, height = 5, width = 5.85, units = "in", dpi = "retina")
+```
+
+
