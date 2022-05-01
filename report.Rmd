@@ -9,19 +9,18 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tapestri.tools)
-library(gt)
 library(patchwork)
 library(viridis)
 library(umap)
 library(ggsci)
+library(ggtext)
+
 
 #read .h5 files
 h5f_a <- read_h5("h5_files/mPDX_ID_A.dna+protein.h5")
 h5f_b <- read_h5("h5_files/mPDX_ID_B.dna+protein.h5")
 h5f_c <- read_h5("h5_files/mpdxC-10_MB_90.dna+protein.h5")
 h5f_d <- read_h5("h5_files/mpdxD-18_MB_33_38.dna+protein.h5")
-
-dt.var_d <- get_variants(h5f_d)
 ```
 
 #### important variant ids:
@@ -30,6 +29,7 @@ dt.var_d <- get_variants(h5f_d)
 (3) chr15:90631838:C/T (IDH2 R172K)
 ```{r}
 int.var <- c(IDH1.R132H = "chr2:209113112:C/T", 
+             IDH1.R132C = "chr2:209113113:G/A", #PM325267
              IDH2.R140Q = "chr15:90631934:C/T",
              IDH2.R172K = "chr15:90631838:C/T",
              TP53 = "chr17:7577517:A/C",
@@ -38,7 +38,19 @@ int.var <- c(IDH1.R132H = "chr2:209113112:C/T",
 ```
 
 
-# Indexing
+# (1) Cell indexing based on sample of origin
+
+## Index for mPDX-B
+```{r}
+indx_160345 <- get_cells_index(h5f_b, variants = int.var["IDH1.R132H"], c(1, 2))
+indx_160345 <- indx_160345[indx_160345 %in% get_cells_index(h5f_b, variants = int.var["IDH1.R132C"], c(0, 3))]
+
+indx_325267 <- get_cells_index(h5f_b, variants = int.var["IDH1.R132C"], c(1, 2))
+indx_325267 <- indx_325267[indx_325267 %in% get_cells_index(h5f_b, variants = int.var["IDH1.R132H"], c(0, 3))]
+
+indx_cells_B <- list(PM160345 = indx_160345, PM352567 = indx_325267)
+rm(list = c("indx_160345", "indx_325267"))
+```
 
 ## Index for mPDX-C
 ```{r}
@@ -49,7 +61,7 @@ indx_150437 <- get_cells_index(h5f_c, variants = int.var["TP53"], c(1, 2))
 indx_150437 <- indx_150437[indx_150437 %in% get_cells_index(h5f_c, variants = int.var["IDH1.R132H"], c(0, 3))]
 
 indx_cells_C <- list(PM160345 = indx_160345, PM150437 = indx_150437)
-
+rm(list = c("indx_160345", "indx_150437"))
 ```
 
 ## Index for mPDX-D
@@ -62,21 +74,182 @@ indx_160053 <- get_cells_index(h5f_d, variants = int.var["IDH2.R140Q"], c(1, 2))
 indx_160053 <- indx_160053[indx_160053 %in% get_cells_index(h5f_d, variants = int.var["IDH1.R132H"], c(0, 3))]
 
 indx_cells_D <- list(PM160345 = indx_160345, PM160053 = indx_160053)
+rm(list = c("indx_160345", "indx_160053"))
 ```
 
 
-# Doublets (upset plot)
+# (2) Upset plots to visualize the number of doublets
+
+## Doublets mPDX-B
+```{r}
+svg("upset_B.svg", width = 3.9, height = 2.67)
+plot_upset_with_variants(h5f_b, variants = int.var[c("IDH1.R132H", "IDH1.R132C")])
+dev.off()
+```
 
 ## Doublets mPDX-C
 ```{r}
+svg("upset_C.svg", width = 3.9, height = 2.67)
 plot_upset_with_variants(h5f_c, variants = int.var[c("IDH1.R132H", "TP53")])
+dev.off()
 ```
 
 ## Doublets mPDX-D
 ```{r}
-plot_upset_with_variants(h5f_d, variants = int.var[c("IDH1.R132H", "IDH2.R140Q", "IDH2.R172K")])
+svg("upset_D.svg", width = 3.9, height = 2.67)
+plot_upset_with_variants(h5f_d, variants = int.var[c("IDH1.R132H", "IDH2.R140Q")])
+dev.off()
 ```
 
+# (3) VAF boxplot in singlets and doublets
+
+## VAF boxplot: mPDX-C
+```{r}
+read_assays_variants(h5f_c, c("AF", "DP"),
+                     index_variants = get_variants_index(h5f_c, variants = int.var[c("IDH1.R132H", "TP53")])
+                     )  -> af_dp_C 
+#
+rownames(af_dp_C$AF) <- paste0("AF_", rownames(af_dp_C$AF))
+rownames(af_dp_C$DP) <- paste0("DP_", rownames(af_dp_C$DP))
+
+af_dp_C <- do.call(rbind, af_dp_C) %>% t() %>% as.data.frame()
+
+af_dp_C$sample <- NA
+af_dp_C[indx_cells_C$PM160345, "sample"] <- "PM160345"
+af_dp_C[indx_cells_C$PM150437, "sample"] <- "PM150437"
+af_dp_C[is.na(af_dp_C$sample), "sample"] <- "Multiplet"
+
+af_dp_C$sample <- factor(af_dp_C$sample, levels = c("PM160345", "PM150437", "Multiplet"))
+#
+
+ggplot(af_dp_C, aes(sample, AF_IDH1.R132H)) +
+  geom_boxplot() +
+  labs(x = "Inferred sample of origin", y = "*IDH1*<sup>R132H</sup> allele frequency (%)") +
+  theme_minimal(13) +
+  theme(axis.title.y = element_markdown()) -> p_AF.IDH1R132H
+
+ggplot(af_dp_C, aes(sample, AF_TP53)) +
+  geom_boxplot() +
+  labs(x = "Inferred sample of origin", y = "*TP53*<sup>I255S</sup> allele frequency (%)") +
+  theme_minimal(13) +
+  theme(axis.title.y = element_markdown()) -> p_AF.TP53I255S
+
+p_AF.C <- p_AF.IDH1R132H + p_AF.TP53I255S
+#ggsave("plots/AF/p_AF.C.png", p_AF.C, height = 3, width = 7, units = "in", dpi = "retina")
+
+rm(list = c("p_AF.IDH1R132H", "p_AF.TP53I255S"))
+```
+
+## VAF boxplot: mPDX-D
+```{r}
+read_assays_variants(h5f_d, c("AF", "DP"),
+                     index_variants = get_variants_index(h5f_d, variants = int.var[c("IDH1.R132H", "IDH2.R140Q")])
+                     )  -> af_dp_D
+#
+rownames(af_dp_D$AF) <- paste0("AF_", rownames(af_dp_D$AF))
+rownames(af_dp_D$DP) <- paste0("DP_", rownames(af_dp_D$DP))
+
+af_dp_D <- do.call(rbind, af_dp_D) %>% t() %>% as.data.frame()
+
+af_dp_D$sample <- NA
+af_dp_D[indx_cells_D$PM160345, "sample"] <- "PM160345"
+af_dp_D[indx_cells_D$PM160053, "sample"] <- "PM160053"
+af_dp_D[is.na(af_dp_D$sample), "sample"] <- "Multiplet"
+
+af_dp_D$sample <- factor(af_dp_D$sample, levels = c("PM160345", "PM160053", "Multiplet"))
+#
+
+ggplot(af_dp_D, aes(sample, AF_IDH1.R132H)) +
+  geom_boxplot() +
+  labs(x = "Inferred sample of origin", y = "*IDH1*<sup>R132H</sup> allele frequency (%)") +
+  theme_minimal(13) +
+  theme(axis.title.y = element_markdown()) -> p_AF.IDH1R132H
+
+ggplot(af_dp_D, aes(sample, AF_IDH2.R140Q)) +
+  geom_boxplot() +
+  labs(x = "Inferred sample of origin", y = "*IDH2*<sup>R140Q</sup> allele frequency (%)") +
+  theme_minimal(13) +
+  theme(axis.title.y = element_markdown()) -> p_AF.IDH2R140Q
+
+p_AF.D <- p_AF.IDH1R132H + p_AF.IDH2R140Q
+#ggsave("plots/AF/p_AF.D.png", p_AF.D, height = 3, width = 7, units = "in", dpi = "retina")
+
+rm(list = c("p_AF.IDH1R132H", "p_AF.IDH2R140Q"))
+```
+
+
+
+# (4) Annotate variant with ENSEMBL VEP
+
+## Write input for mPDX-C
+```{r}
+dt.var_c <- get_variants(h5f_c) %>% subset(filtered == "00") 
+#retrieve FLT3-ITD
+dt.var_c <- rbind(dt.var_c, subset(get_flt3itd(h5f_c), filtered == "01"))
+#write vep input
+write_vep_input(dt.var_c, "VEP/input/VEP_input_C.txt")
+```
+
+## Write input for mPDX-D
+```{r}
+dt.var_d <- get_variants(h5f_d) %>% subset(filtered == "00") 
+#retrieve FLT3-ITD
+dt.var_d <- rbind(dt.var_d, subset(get_flt3itd(h5f_d), filtered == "01"))
+#write vep input
+write_vep_input(dt.var_d, "VEP/input/VEP_input_D.txt")
+```
+
+
+## Read output for mPDX-C
+```{r}
+vep_c <- read_vep_output("VEP/output/VEP_output_C.txt")
+
+vep_c %>% 
+  subset(Protein_position != "-") %>% 
+  subset(Consequence %in% c("missense_variant", "frameshift_variant", "downstream_gene_variant")) %>% 
+  .[!duplicated(.$X.Uploaded_variation), ] %>% 
+  dplyr::select(X.Uploaded_variation, Location, Allele, Gene, Feature, Consequence, ends_with("position"), Amino_acids, SYMBOL, SIFT, PolyPhen, EXON) -> vep_c
+
+#remove KIT because it's benign/tolerated
+#remove EZH2 because it was not detected in targeted sequencing
+vep_c <- subset(vep_c, !grepl("tolerated", SIFT))
+vep_c <- subset(vep_c, SYMBOL != "EZH2")
+
+scite_C <- data.frame(
+  SYMBOL = c("DNMT3A", "IDH1", "GATA2", "TET2", "TP53", "NPM1"),
+  Variant = c("R882C", "R132H", "A372V", "C1709R", "I255S", "NPM1c"),
+  id = c(vep_c$X.Uploaded_variation %>% str_split("_") %>% lapply(function(x){x[2]}) %>% unlist(), "chr5:170837543:C/CTCTG")
+)
+```
+
+## Read output for mPDX-D
+```{r}
+vep_d <- read_vep_output("VEP/output/VEP_output_D.txt")
+
+vep_d %>% 
+  subset(Protein_position != "-") %>% 
+  subset(Consequence %in% c("missense_variant", "frameshift_variant", "downstream_gene_variant")) %>% 
+  .[!duplicated(.$X.Uploaded_variation), ] %>% 
+  dplyr::select(X.Uploaded_variation, Location, Allele, Gene, Feature, Consequence, ends_with("position"), Amino_acids, SYMBOL, SIFT, PolyPhen, EXON) -> vep_d
+
+#remove EZH2 and IDH2 frameshift mutations because they're not detected in targeted sequencing
+vep_d <- subset(vep_d, SIFT != "-")
+
+
+scite_D <- data.frame(
+  SYMBOL = c("DNMT3A", "IDH1", "GATA2", "TET2", "TET2", "IDH2", "NPM1", "FLT3"),
+  Variant = c("DNMT3A_R882C", "IDH1_R132H", "GATA2_A372V", "TET2_C1709R", "TET2_H1778R", "IDH2_R140Q", "NPM1c", "FLT3_ITD"),
+  id = c(vep_d$X.Uploaded_variation %>% str_split("_") %>% lapply(function(x){x[2]}) %>% unlist(), "chr5:170837543:C/CTCTG", "chr13:28608262:T/TTCATATTCTCTGAAATCAACG")
+)
+
+##
+write_scite_inputs(h5f_d, 
+                   variants = set_names(scite_D$id, scite_D$Variant), 
+                   cell_index = c(indx_cells_D$PM160345, indx_cells_D$PM160053),
+                   fp_ngt_csv = "scite/input/D_combined_ngt.csv",
+                   fp_geneNames = "scite/input/D_combined.geneNames"
+                   )
+```
 
 # Protein UMAP
 
