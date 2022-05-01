@@ -22,6 +22,6 @@ wd="/cluster/projects/chanlab/mPDX_vep"
 input="/cluster/projects/chanlab/mPDX_vep/input/VEP_input_C.txt"
 output="/cluster/projects/chanlab/mPDX_vep/output/VEP_output_C.txt"
 
-vep --offline --dir_cache $cache_dir --everything --merged --assembly GRCh37 --use_given_ref -i $input -o $output
+vep --offline --dir_cache $cache_dir --everything --merged --assembly GRCh37 --use_given_ref --tab -i $input -o $output
 ```
  
