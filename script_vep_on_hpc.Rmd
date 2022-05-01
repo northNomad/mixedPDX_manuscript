@@ -1,0 +1,27 @@
+---
+title: "script_VEP"
+author: "AlexCH"
+date: "5/1/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{bash}
+#!/bin/bash
+#SBATCH -t 100:00:00
+#SBATCH --mem=30G
+#SBATCH -J VEP
+#SBATCH -c 1
+
+module load vep/98
+
+wd="/cluster/projects/chanlab/mPDX_vep"
+input="/cluster/projects/chanlab/mPDX_vep/input/VEP_input_C.txt"
+output="/cluster/projects/chanlab/mPDX_vep/output/VEP_output_C.txt"
+
+vep --offline --dir_cache $cache_dir --everything --merged --assembly GRCh37 --use_given_ref -i $input -o $output
+```
+ 
