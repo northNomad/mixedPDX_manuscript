@@ -1,0 +1,30 @@
+---
+title: "script_VEP"
+author: "AlexCH"
+date: "5/1/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{bash}
+#!/bin/bash
+#SBATCH -t 100:00:00
+#SBATCH -c 1
+#SBATCH --mem 30G
+#SBATCH -J scite
+
+input="/cluster/projects/chanlab/mPDX_scite/input/D_combined_ngt.csv"
+genenames="/cluster/projects/chanlab/mPDX_scite/input/D_combined.geneNames"
+
+/cluster/projects/chanlab/mpdx_c/SCITE-master/scite \
+        -i $input \
+        -names $genenames \
+        -n 8 -m 3758 -r 3 -l 1000000 -fd 0.004836997 -ad 0.13 0.13 -cc 1.299164e-05 \
+        -a --max_treelist_size 1 \
+        -seed 69 -o /cluster/projects/chanlab/mPDX_scite/output/scite.out_D_combined_20220501
+
+```
+ 
