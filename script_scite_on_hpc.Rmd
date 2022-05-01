@@ -9,6 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+#D bulk
 ```{bash}
 #!/bin/bash
 #SBATCH -t 100:00:00
@@ -28,3 +30,42 @@ genenames="/cluster/projects/chanlab/mPDX_scite/input/D_combined.geneNames"
 
 ```
  
+
+#D PM160345
+```{bash}
+#!/bin/bash
+#SBATCH -t 100:00:00
+#SBATCH -c 1
+#SBATCH --mem 30G
+#SBATCH -J PM160345
+
+input="/cluster/projects/chanlab/mPDX_scite/input/D_PM160345_ngt.csv"
+genenames="/cluster/projects/chanlab/mPDX_scite/input/D_PM160345.geneNames"
+
+/cluster/projects/chanlab/mpdx_c/SCITE-master/scite \
+        -i $input \
+        -names $genenames \
+        -n 7 -m 2919 -r 3 -l 1000000 -fd 0.004836997 -ad 0.13 0.13 -cc 1.299164e-05 \
+        -a --max_treelist_size 1 \
+        -seed 69 -o /cluster/projects/chanlab/mPDX_scite/output/scite.out_D_PM160345_20220501
+```
+
+#D PM160053
+```{bash}
+#!/bin/bash
+#SBATCH -t 100:00:00
+#SBATCH -c 1
+#SBATCH --mem 30G
+#SBATCH -J PM160053
+
+input="/cluster/projects/chanlab/mPDX_scite/input/D_PM160053_ngt.csv"
+genenames="/cluster/projects/chanlab/mPDX_scite/input/D_PM160053.geneNames"
+
+/cluster/projects/chanlab/mpdx_c/SCITE-master/scite \
+        -i $input \
+        -names $genenames \
+        -n 2 -m 839 -r 3 -l 1000000 -fd 0.004836997 -ad 0.13 0.13 -cc 1.299164e-05 \
+        -a --max_treelist_size 1 \
+        -seed 69 -o /cluster/projects/chanlab/mPDX_scite/output/scite.out_D_PM160053_20220501
+```
+
