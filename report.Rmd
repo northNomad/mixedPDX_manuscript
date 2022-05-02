@@ -222,7 +222,7 @@ scite_C <- data.frame(
 )
 ```
 
-## Read VEP output / Write scite input for mPDX-D
+## Read VEP output: mPDX-D
 ```{r}
 vep_d <- read_vep_output("VEP/output/VEP_output_D.txt")
 
@@ -241,29 +241,103 @@ scite_D <- data.frame(
   Variant = c("DNMT3A_R882C", "IDH1_R132H", "GATA2_A372V", "TET2_C1709R", "TET2_H1778R", "IDH2_R140Q", "NPM1c", "FLT3_ITD"),
   id = c(vep_d$X.Uploaded_variation %>% str_split("_") %>% lapply(function(x){x[2]}) %>% unlist(), "chr5:170837543:C/CTCTG", "chr13:28608262:T/TTCATATTCTCTGAAATCAACG")
 )
+scite_D <- scite_D[c(2, 6, 1, 3, 4, 5, 7, 8), ]
+rownames(scite_D) <- NULL
+```
 
-##
-# write_scite_inputs(h5f_d, 
-#                    variants = set_names(scite_D$id, scite_D$Variant), 
-#                    cell_index = c(indx_cells_D$PM160345, indx_cells_D$PM160053),
-#                    fp_ngt_csv = "scite/input/D_combined_ngt.csv",
-#                    fp_geneNames = "scite/input/D_combined.geneNames"
-#                    )
+## Investigate (upset plots) variants from vep: mPDX-D
+```{r}
+svg("plots/upset/upset_D_filtered_variants.svg", height = 4.3, width = 7.2)
+plot_upset_with_variants(h5f_d, 
+                         variants = set_names(scite_D$id, scite_D$Variant), 
+                         index_cell = c(indx_cells_D$PM160345, indx_cells_D$PM160053),
+                         nset = nrow(scite_D))
+dev.off()
 
 
-# write_scite_inputs(h5f_d, 
-#                    variants = set_names(scite_D$id, scite_D$Variant)[-6], 
+#DNMT3A-R882C is associated with PM160345
+svg("plots/upset/upset_D_DNMT3A-R882C_vs_IDH12.svg", height = 2.8, width = 3.5)
+plot_upset_with_variants(h5f_d, 
+                         variants = set_names(scite_D$id[c(1, 2, 3)], scite_D$Variant[c(1, 2, 3)]), 
+                         index_cell = c(indx_cells_D$PM160345, indx_cells_D$PM160053),
+                         nset = nrow(scite_D))
+dev.off()
+
+#GATA2-A372V is associated with PM160345
+svg("plots/upset/upset_D_GATA2-A372V_vs_IDH12.svg", height = 2.8, width = 3.5)
+plot_upset_with_variants(h5f_d, 
+                         variants = set_names(scite_D$id[c(1, 2, 4)], scite_D$Variant[c(1, 2, 4)]), 
+                         index_cell = c(indx_cells_D$PM160345, indx_cells_D$PM160053),
+                         nset = nrow(scite_D))
+dev.off()
+
+#TET2-C1709R is associated with PM160345
+svg("plots/upset/upset_D_TET2-C1709R_vs_IDH12.svg", height = 2.8, width = 3.5)
+plot_upset_with_variants(h5f_d, 
+                         variants = set_names(scite_D$id[c(1, 2, 5)], scite_D$Variant[c(1, 2, 5)]), 
+                         index_cell = c(indx_cells_D$PM160345, indx_cells_D$PM160053),
+                         nset = nrow(scite_D))
+dev.off()
+
+
+#TET2-H1778R is associated with PM160345
+svg("plots/upset/upset_D_TET2-H1778R_vs_IDH12.svg", height = 2.8, width = 3.5)
+plot_upset_with_variants(h5f_d, 
+                         variants = set_names(scite_D$id[c(1, 2, 6)], scite_D$Variant[c(1, 2, 6)]), 
+                         index_cell = c(indx_cells_D$PM160345, indx_cells_D$PM160053),
+                         nset = nrow(scite_D))
+dev.off()
+
+#NPM1c is associated with both PM160345 and PM160053
+svg("plots/upset/upset_D_NPM1c_vs_IDH12.svg", height = 2.8, width = 3.5)
+plot_upset_with_variants(h5f_d, 
+                         variants = set_names(scite_D$id[c(1, 2, 7)], scite_D$Variant[c(1, 2, 7)]), 
+                         index_cell = c(indx_cells_D$PM160345, indx_cells_D$PM160053),
+                         nset = nrow(scite_D))
+dev.off()
+
+#FLT3-ITD is associated with PM160053
+svg("plots/upset/upset_D_FLT3-ITD_vs_IDH12.svg", height = 2.8, width = 3.5)
+plot_upset_with_variants(h5f_d, 
+                         variants = set_names(scite_D$id[c(1, 2, 8)], scite_D$Variant[c(1, 2, 8)]), 
+                         index_cell = c(indx_cells_D$PM160345, indx_cells_D$PM160053),
+                         nset = nrow(scite_D))
+dev.off()
+```
+
+## Write scite input: mPDX-D
+```{r}
+scite_D$PM160345 <- c(1, 0, 1, 1, 1, 0, 1, 0)
+scite_D$PM160053 <- c(0, 1, 0, 0, 0, 1, 1, 1)
+##write for PM160345: 5 variants across 2919 cells
+# x <- scite_D %>% subset(PM160345 == 1)
+# x <- set_names(x$id, x$Variant)
+# write_scite_inputs(h5f_d,
+#                    variants = x,
 #                    cell_index = indx_cells_D$PM160345,
 #                    fp_ngt_csv = "scite/input/D_PM160345_ngt.csv",
 #                    fp_geneNames = "scite/input/D_PM160345.geneNames"
 #                    )
+# rm(x)
 
-# write_scite_inputs(h5f_d, 
-#                    variants = set_names(scite_D$id, scite_D$Variant)[6:7], 
+##write for PM160053: 4 variants across 839 cells
+# x <- scite_D %>% subset(PM160053 == 1)
+# x <- set_names(x$id, x$Variant)
+# write_scite_inputs(h5f_d,
+#                    variants = x,
 #                    cell_index = indx_cells_D$PM160053,
 #                    fp_ngt_csv = "scite/input/D_PM160053_ngt.csv",
 #                    fp_geneNames = "scite/input/D_PM160053.geneNames"
 #                    )
+# rm(x)
+```
+
+## Read scite output: mPDX-D
+```{r}
+scite_D_160345 <- read_scite_output("scite/output/D_PM160345_ngt_ml0.gv", cell_index_h5f = indx_cells_D$PM160345)
+scite_D_160053 <- read_scite_output("scite/output/D_PM160053_ngt_ml0.gv", cell_index_h5f = indx_cells_D$PM160053)
+
+scite_out_D <- rbind(scite_D_160345, scite_D_160053)
 ```
 
 # Protein UMAP
@@ -283,14 +357,28 @@ protein_C$umap2 <- umap_C$layout[, 2]
 
 ## UMAP wrangle: mPDX-D
 ```{r}
+#read and normalize protein counts
 protein_D <- read_protein_counts(h5f_d, normalization = "clr") %>% data.table()
-protein_D$index_cell <- 1:nrow(protein_D)
-protein_D <- protein_D %>% subset(index_cell %in% unlist(indx_cells_D))
-protein_D$sample <- ifelse(protein_D$index_cell %in% indx_cells_D$PM160345, "PM160345", "PM160053")
 
+#filter out doublets
+protein_D$cell_index <- 1:nrow(protein_D)
+protein_D <- protein_D %>% subset(cell_index %in% unlist(indx_cells_D))
+protein_D$sample <- ifelse(protein_D$cell_index %in% indx_cells_D$PM160345, "PM160345", "PM160053")
+
+#umap
 umap_D <- umap(dplyr::select(protein_D, starts_with("CD")))
 protein_D$umap1 <- umap_D$layout[, 1]
 protein_D$umap2 <- umap_D$layout[, 2]
+
+#combine clonal data
+protein_D <- left_join(protein_D, scite_out_D, by = "cell_index")
+```
+
+## Individual clone size: mPDX-D
+```{r}
+clone_size_D <- protein_D %>% group_by(sample, Clone) %>% dplyr::summarise(n = n())
+#write_csv(clone_size_D, "clone_size/clone_size_D.csv")
+clone_size_D
 ```
 
 ## Clustering: mPDX-D
@@ -328,11 +416,6 @@ p.umap.d <- p_umap_d_sample + p_umap_d_km
 
 ```
 
-## Scite output: mPDX-D
-```{r}
-
-
-```
 
 
 ## Wrapped UMAP plot: mPDX-C
@@ -377,14 +460,14 @@ ggsave("protein_violin_C.png", p.violin.c, height = 5, width = 15, units = "in",
 
 
 
-## Wrapped UMAP plot: mPDX-D
+## Wrapped UMAP plot for legend: mPDX-D
 ```{r}
 #facet by protein 
 ls_umap_d <- list()
 for(i in get_protein_ids(h5f_d)){
   ggplot(protein_D, aes_string("umap1", "umap2", color = i)) + 
     geom_point() + 
-    theme_classic() + 
+    theme_void(25) + 
     labs(x = "UMAP1", y = "UMAP2") +
     scale_color_viridis_c() -> p
   
@@ -392,28 +475,66 @@ for(i in get_protein_ids(h5f_d)){
 }
 
 p.umap.out.D <- patchwork::wrap_plots(ls_umap_d, nrow = 2)
-ggsave("protein_umap_D.png", p.umap.out.D, height = 5, width = 15, units = "in", dpi = "retina")
-#####
+ggsave("plots/umap/protein_umap_D.png", p.umap.out.D, height = 5, width = 20, units = "in", dpi = "retina")
+```
 
-#facet by patient
-ggplot(protein_D, aes(umap1, umap2, color = sample)) + 
-    geom_point() + 
-    theme_classic() + 
-    labs(x = "UMAP1", y = "UMAP2") +
-    scale_color_viridis_d() -> p.umap.sample.D
-ggsave("protein_umap_sample_D.png", p.umap.sample.D, height = 5, width = 5.85, units = "in", dpi = "retina")
-#####
 
+## Violin plot: mPDX-D
+```{r}
 #violin
-protein_D %>% 
-    pivot_longer(starts_with("CD"), names_to = "marker", values_to = "normalized_count") %>% 
-    ggplot(aes(sample, normalized_count, fill = sample)) +
+protein_D_long <- protein_D %>% 
+  mutate(group = interaction(sample, Clone)) %>% 
+  pivot_longer(starts_with("CD"), names_to = "marker", values_to = "normalized_count") 
+
+#reorder group
+protein_D_long$group <- factor(protein_D_long$group, levels = c("PM160345.IDH1_R132H",
+                                                                "PM160345.DNMT3A_R882C",
+                                                                "PM160345.NPM1c",
+                                                                "PM160345.GATA2_A372V",
+                                                                "PM160345.TET2_C1709R",
+                                                                "PM160053.IDH2_R140Q",
+                                                                "PM160053.NPM1c",
+                                                                "PM160053.TET2_H1778R",
+                                                                "PM160053.FLT3_ITD"
+                                                                ))
+
+color_clone_D <- data.frame(group = levels(protein_D_long$group),
+                            color = ggsci::pal_npg()(10)[1:9]
+                            )
+
+protein_D_long$group <- factor(protein_D_long$group, levels = c("PM160345.IDH1_R132H",
+                                                                "PM160345.DNMT3A_R882C",
+                                                                "PM160345.NPM1c",
+                                                                "PM160345.GATA2_A372V",
+                                                                "PM160345.TET2_C1709R",
+                                                                "PM160053.IDH2_R140Q",
+                                                                "PM160053.TET2_H1778R",
+                                                                "PM160053.NPM1c",
+                                                                "PM160053.FLT3_ITD"
+                                                                ) %>% rev())
+
+
+ggplot(protein_D_long, aes(group, normalized_count, fill = group)) +
     geom_violin() +
-    facet_wrap(~marker, scales = "free_y", nrow = 2) +
-    scale_fill_viridis_d(guide = "none") +
-    labs(x = "Sample", y = "Normalized Count") +
-    theme_classic() -> p.violin.d
-ggsave("protein_violin_D.png", p.violin.d, height = 5, width = 15, units = "in", dpi = "retina")
+    scale_x_discrete(label = c("*IDH1*<sup>R132H</sup>",
+                               "*DNMT3A*<sup>R882C</sup>",
+                               "*NPM1c*",
+                               "*GATA2*<sup>A372V</sup>",
+                               "*TET2*<sup>C1709R</sup>",
+                               "*IDH2*<sup>R140Q</sup>",
+                               "*TET2*<sup>H1778R</sup>",
+                               "*NPM1c*",
+                               "*FLT3*-ITD"
+    ) %>% rev()) +
+    facet_grid(~marker, scales = "free_x") +
+    scale_fill_manual(values = set_names(color_clone_D$color, color_clone_D$group),
+                      guide = "none") +
+    labs(x = NULL, y = "Normalized Count") +
+    theme_minimal(15) +
+    theme(axis.text.y = element_markdown()) +
+    coord_flip() -> p_violin_by_clone_D
+    
+ggsave("plots/violin/p_violin_by_clone_D.png", p_violin_by_clone_D, width = 11.2, height = 4.2, dpi = "retina", units = "in")
 ```
 
 ## contour plots: mPDX-C
