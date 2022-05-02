@@ -195,12 +195,12 @@ write_vep_input(dt.var_c, "VEP/input/VEP_input_C.txt")
 dt.var_d <- get_variants(h5f_d) %>% subset(filtered == "00") 
 #retrieve FLT3-ITD
 dt.var_d <- rbind(dt.var_d, subset(get_flt3itd(h5f_d), filtered == "01"))
-#write vep input
-write_vep_input(dt.var_d, "VEP/input/VEP_input_D.txt")
+##write vep input
+#write_vep_input(dt.var_d, "VEP/input/VEP_input_D.txt")
 ```
 
 
-## Read output for mPDX-C
+## Read VEP output / Write scite input for mPDX-C
 ```{r}
 vep_c <- read_vep_output("VEP/output/VEP_output_C.txt")
 
@@ -222,7 +222,7 @@ scite_C <- data.frame(
 )
 ```
 
-## Read output for mPDX-D
+## Read VEP output / Write scite input for mPDX-D
 ```{r}
 vep_d <- read_vep_output("VEP/output/VEP_output_D.txt")
 
@@ -243,12 +243,27 @@ scite_D <- data.frame(
 )
 
 ##
-write_scite_inputs(h5f_d, 
-                   variants = set_names(scite_D$id, scite_D$Variant), 
-                   cell_index = c(indx_cells_D$PM160345, indx_cells_D$PM160053),
-                   fp_ngt_csv = "scite/input/D_combined_ngt.csv",
-                   fp_geneNames = "scite/input/D_combined.geneNames"
-                   )
+# write_scite_inputs(h5f_d, 
+#                    variants = set_names(scite_D$id, scite_D$Variant), 
+#                    cell_index = c(indx_cells_D$PM160345, indx_cells_D$PM160053),
+#                    fp_ngt_csv = "scite/input/D_combined_ngt.csv",
+#                    fp_geneNames = "scite/input/D_combined.geneNames"
+#                    )
+
+
+# write_scite_inputs(h5f_d, 
+#                    variants = set_names(scite_D$id, scite_D$Variant)[-6], 
+#                    cell_index = indx_cells_D$PM160345,
+#                    fp_ngt_csv = "scite/input/D_PM160345_ngt.csv",
+#                    fp_geneNames = "scite/input/D_PM160345.geneNames"
+#                    )
+
+# write_scite_inputs(h5f_d, 
+#                    variants = set_names(scite_D$id, scite_D$Variant)[6:7], 
+#                    cell_index = indx_cells_D$PM160053,
+#                    fp_ngt_csv = "scite/input/D_PM160053_ngt.csv",
+#                    fp_geneNames = "scite/input/D_PM160053.geneNames"
+#                    )
 ```
 
 # Protein UMAP
@@ -265,6 +280,7 @@ umap_C <- umap(dplyr::select(protein_C, starts_with("CD")))
 protein_C$umap1 <- umap_C$layout[, 1]
 protein_C$umap2 <- umap_C$layout[, 2]
 ```
+
 ## UMAP wrangle: mPDX-D
 ```{r}
 protein_D <- read_protein_counts(h5f_d, normalization = "clr") %>% data.table()
@@ -277,7 +293,49 @@ protein_D$umap1 <- umap_D$layout[, 1]
 protein_D$umap2 <- umap_D$layout[, 2]
 ```
 
-## UMAP plot: mPDX-C
+## Clustering: mPDX-D
+```{r}
+library(factoextra)
+# set.seed(69)
+# gapStat_D <- clusGap(dplyr::select(protein_D, starts_with("CD")), FUN = kmeans, nstart = 30, K.max = 10, B = 50)
+
+# fviz_gap_stat(gapStat_D) + 
+#   ggtitle(NULL) +
+#   theme_minimal(13) -> p_protein_cluster_gapstat_D
+
+#ggsave("plots/kmeans_gapstat/p_protein_cluster_gapstat_D.png", plot = p_protein_cluster_gapstat_D, width = 3.5, height = 3, units = "in", dpi = "retina")
+
+km_D <- kmeans(dplyr::select(protein_D, starts_with("CD")), centers = 9, nstart = 30)
+protein_D$km_clust <- as.character(km_D$cluster)
+```
+
+## Basic UMAP plot: mPDX-D
+```{r}
+ggplot(protein_D, aes(umap1, umap2, color = sample)) +
+    geom_point() +
+    scale_color_viridis_d(name = "Sample") +
+    theme_void(15) +
+    theme(legend.position = "top") -> p_umap_d_sample
+
+ggplot(protein_D, aes(umap1, umap2, color = km_clust)) +
+  geom_point() +
+  scale_color_npg(name = "Kmeans Cluster") +
+  theme_void(15) +
+  theme(legend.position = "top") -> p_umap_d_km
+
+p.umap.d <- p_umap_d_sample + p_umap_d_km
+#ggsave("plots/umap/p_umap.d.png", plot = p.umap.d, height = 3.5, width = 9, dpi = "retina", units = "in")
+
+```
+
+## Scite output: mPDX-D
+```{r}
+
+
+```
+
+
+## Wrapped UMAP plot: mPDX-C
 ```{r}
 #facet by protein 
 ls_umap_c <- list()
@@ -318,7 +376,8 @@ ggsave("protein_violin_C.png", p.violin.c, height = 5, width = 15, units = "in",
 
 
 
-## UMAP plot: mPDX-D
+
+## Wrapped UMAP plot: mPDX-D
 ```{r}
 #facet by protein 
 ls_umap_d <- list()
